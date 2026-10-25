@@ -41,6 +41,7 @@ scripts/pipeline.py doctor --require-browser。
 - Python **3.12 或更新版本**（锁定依赖 `av==19.0.2` 的要求）。引导脚本本身可由 Python 3.7+ 启动，寻找已安装的新运行时。
 - Node.js **20 或更新版本**，推荐仍受维护的 LTS；需要安装依赖时还需 npm。
 - Chrome、Edge 或 Chromium，浏览器正常安装即可，不随本仓库打包。
+- Linux 需安装系统 FFmpeg，例如 Debian/Ubuntu 使用 `sudo apt install ffmpeg`；CI 使用发行版 FFmpeg。Windows/macOS 无系统 FFmpeg 时可使用随 Python 依赖提供的构建。当前 imageio 的 Linux x86_64 7.0.2 静态构建在 MPEG-TS 回归中崩溃，脚本会排除它并给出安装提示。
 - 完整转录需要宿主现有或用户已配置的 ASR；技能不自动下载模型或开通收费 API。
 
 下载或克隆仓库到宿主的技能目录，避免多套一层同名目录。下面命令从**技能根目录**运行，与安装路径无关。

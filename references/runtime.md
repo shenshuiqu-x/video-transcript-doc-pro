@@ -2,6 +2,8 @@
 
 ## 依赖与网络
 
+Linux 优先使用发行版 FFmpeg（Debian/Ubuntu 可 sudo apt install ffmpeg）。imageio 当前的 Linux x86_64 7.0.2 静态构建在原生 CI 的 MPEG-TS 回归中崩溃，自动发现时排除该构建；没有替代程序就停止并给出安装提示，不让崩溃结果进入后续 ASR。Windows/macOS 可使用已通过回归的随包 FFmpeg。
+
 bootstrap.py 可由 Python 3.7+ 运行，会动态寻找 Python >=3.12（锁定的 PyAV 19 要求），优先用已有 uv，否则用 venv/pip，在本技能 .venv 安装 requirements.txt。Windows 使用 Scripts/python.exe，macOS/Linux 使用 bin/python；以后续输出为准。没有系统 ffmpeg 命令也能使用 imageio-ffmpeg 自带的可执行文件，前提是 -version 检查通过。可以用 VIDEO_TRANSCRIPT_PYTHON、VIDEO_TRANSCRIPT_FFMPEG 指定运行时，不根据架构名推断“不可用”。
 
 采集需要 Node >=20 和 Playwright。bootstrap 优先复用可解析的 playwright-core/playwright，否则通过 npm ci 安装锁定的本地 playwright-core；WorkBuddy 内置模块只是可选回退。VIDEO_TRANSCRIPT_NODE、VIDEO_TRANSCRIPT_PLAYWRIGHT 可显式指定；仅处理已有媒体可 bootstrap --media-only。只有本机 CDP 自动添加 NO_PROXY。Python 默认遵循系统代理，FFmpeg 同步代理配置；确认 CDN 需要直连时才添加 extract --direct，浏览器也只有明确需要时添加 browser.py --direct。不默认关闭沙箱或全局覆盖代理。

@@ -10,6 +10,8 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import urllib.error
@@ -22,6 +24,16 @@ import runtime as r
 
 
 class Portability(unittest.TestCase):
+    def test_broken_linux_bundle_cannot_pass_version_only_detection(self):
+        bad = '/bundle/ffmpeg-linux-x86_64-v7.0.2'
+        with patch.object(p.sys, 'platform', 'linux'), patch.object(p.shutil, 'which', return_value=None), \
+             patch.dict(os.environ, {'VIDEO_TRANSCRIPT_FFMPEG': bad}), \
+             patch.dict(sys.modules, {'imageio_ffmpeg': SimpleNamespace(get_ffmpeg_exe=lambda: bad)}), \
+             patch.object(p.subprocess, 'run') as command:
+            with self.assertRaisesRegex(RuntimeError, 'MPEG-TS'):
+                p.ffmpeg()
+            command.assert_not_called()
+
     def test_windows_runtime_and_browser_paths(self):
         with patch.object(r.sys, 'platform', 'win32'), patch.object(r.shutil, 'which', return_value=None), patch.dict(os.environ, {'LOCALAPPDATA': '/local'}):
             self.assertEqual(r.venv_python('/skill/.venv').as_posix(), '/skill/.venv/Scripts/python.exe')
@@ -107,7 +119,16 @@ class Regression(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown()
         cls.server.server_close()
-        cls.tmp.cleanup()
+        # Browser.close acknowledges shutdown before helper processes release all files.
+        deadline = time.monotonic() + 15
+        while True:
+            try:
+                cls.tmp.cleanup()
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(.25)
 
     def task(self, name):
         folder = self.root / name
@@ -237,8 +258,8 @@ class Regression(unittest.TestCase):
             self.assertAlmostEqual(report['decoded_duration'], 22, delta=.1)
         finally:
             # Only close the dedicated test browser; never touch a user's browser.
-            close = "const p=require(process.argv[1]);(async()=>{const b=await p.chromium.connectOverCDP(process.argv[2]);const s=await b.newBrowserCDPSession();await s.send('Browser.close').catch(()=>{});})().then(()=>process.exit(0)).catch(()=>process.exit(1));"
-            subprocess.run([node, '-e', close, status['module'], info['cdp']], timeout=15, capture_output=True)
+            close = "const p=require(process.argv[1]);(async()=>{const b=await p.chromium.connectOverCDP(process.argv[2]);const gone=new Promise(r=>b.once('disconnected',r));const s=await b.newBrowserCDPSession();await s.send('Browser.close').catch(()=>{});await gone;})().then(()=>process.exit(0)).catch(()=>process.exit(1));"
+            subprocess.run([node, '-e', close, status['module'], info['cdp']], timeout=15, capture_output=True, check=True)
 
 
 if __name__ == '__main__':

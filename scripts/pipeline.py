@@ -76,13 +76,21 @@ def locked(task):
 
 def ffmpeg():
     candidates = [os.environ.get('VIDEO_TRANSCRIPT_FFMPEG'), shutil.which('ffmpeg')]
+    broken_bundle = None
     try:
         import imageio_ffmpeg
-        candidates.append(imageio_ffmpeg.get_ffmpeg_exe())
+        bundled = imageio_ffmpeg.get_ffmpeg_exe()
+        # This wheel's Linux x86_64 7.0.2 static build crashes on the MPEG-TS regression.
+        if sys.platform.startswith('linux') and Path(bundled).name == 'ffmpeg-linux-x86_64-v7.0.2':
+            broken_bundle = bundled
+        else:
+            candidates.append(bundled)
     except (ImportError, RuntimeError):
         pass
     for candidate in candidates:
         if not candidate:
+            continue
+        if broken_bundle and Path(candidate).resolve() == Path(broken_bundle).resolve():
             continue
         try:
             p = subprocess.run([candidate, '-version'], capture_output=True, text=True, timeout=15)
@@ -90,6 +98,8 @@ def ffmpeg():
                 return candidate
         except (OSError, subprocess.TimeoutExpired):
             pass
+    if broken_bundle:
+        raise RuntimeError('imageio 的 Linux 7.0.2 静态构建无法通过 MPEG-TS 回归；请安装系统 FFmpeg（如 sudo apt install ffmpeg），或用 VIDEO_TRANSCRIPT_FFMPEG 指定可用构建。')
     raise RuntimeError('无可运行 FFmpeg；先执行 scripts/bootstrap.py，或设置 VIDEO_TRANSCRIPT_FFMPEG。')
 
 
@@ -389,7 +399,7 @@ def run_extract(task, state, index, direct, max_bytes):
         result = subprocess.run(cmd, capture_output=True, text=True, env=env,
                                 timeout=max(180, min(7200, expected * 2 + 120)))
         if result.returncode:
-            raise ValueError('FFmpeg 失败：' + clean_error(result.stderr))
+            raise ValueError('FFmpeg 失败（退出码 %s）：%s' % (result.returncode, clean_error(result.stderr)))
         report = validate_audio(part, expected)
         part.replace(dest)
         report.update({'file': filename, 'expected_duration': expected, 'media_index': index,
