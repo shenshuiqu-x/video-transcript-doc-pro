@@ -1,0 +1,26 @@
+# Recreated locally by bootstrap.py.
+.venv/
+node_modules/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Credentials and local execution output.
+.env
+.env.*
+!.env.example
+*.log
+artifacts/
+runs/
+capture*.json
+manifest.json
+publish-state.json
+cookies.txt
+asr/
+chunks/
+transcript.raw.*
+*.mp4
+*.m4a
+*.aac
+*.flac
+*.wav

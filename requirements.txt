@@ -1,0 +1,2 @@
+av==19.0.2
+imageio-ffmpeg==0.6.0
