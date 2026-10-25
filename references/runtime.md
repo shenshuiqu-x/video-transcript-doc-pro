@@ -2,15 +2,15 @@
 
 ## 依赖与网络
 
-bootstrap.py 可由系统 Python 运行，会动态寻找 Python >=3.10，优先用已有 uv，否则用 venv/pip，在本技能 .venv 安装 requirements.txt。没有系统 ffmpeg 命令也能使用 imageio-ffmpeg 自带的可执行文件，前提是 -version 检查通过。可以用 VIDEO_TRANSCRIPT_PYTHON、VIDEO_TRANSCRIPT_FFMPEG 指定运行时，不根据架构名推断“不可用”。
+bootstrap.py 可由 Python 3.7+ 运行，会动态寻找 Python >=3.12（锁定的 PyAV 19 要求），优先用已有 uv，否则用 venv/pip，在本技能 .venv 安装 requirements.txt。Windows 使用 Scripts/python.exe，macOS/Linux 使用 bin/python；以后续输出为准。没有系统 ffmpeg 命令也能使用 imageio-ffmpeg 自带的可执行文件，前提是 -version 检查通过。可以用 VIDEO_TRANSCRIPT_PYTHON、VIDEO_TRANSCRIPT_FFMPEG 指定运行时，不根据架构名推断“不可用”。
 
-采集需要 Node 和 playwright-core；脚本支持正常模块解析和当前用户 .workbuddy/binaries/node/workspace/node_modules/playwright-core 路径。只有本机 CDP 自动添加 NO_PROXY。Python 默认遵循系统代理，FFmpeg 同步代理配置；确认 CDN 需要直连时才添加 extract --direct，浏览器也只有明确需要时添加 browser.py --direct。不默认关闭沙箱或全局覆盖代理。
+采集需要 Node >=20 和 Playwright。bootstrap 优先复用可解析的 playwright-core/playwright，否则通过 npm ci 安装锁定的本地 playwright-core；WorkBuddy 内置模块只是可选回退。VIDEO_TRANSCRIPT_NODE、VIDEO_TRANSCRIPT_PLAYWRIGHT 可显式指定；仅处理已有媒体可 bootstrap --media-only。只有本机 CDP 自动添加 NO_PROXY。Python 默认遵循系统代理，FFmpeg 同步代理配置；确认 CDN 需要直连时才添加 extract --direct，浏览器也只有明确需要时添加 browser.py --direct。不默认关闭沙箱或全局覆盖代理。
 
-主 ASR 是 WorkBuddy 提供的 AudioTranscribe。脚本不安装 ASR 模型、不自动访问按分钟收费 API。读取当前工具 schema，不假定格式上限或时间戳单位。
+ASR 由宿主或用户现有配置提供，例如 WorkBuddy 的 AudioTranscribe。用 transcript.py import-asr 导入统一的 segments/start/end/text 格式即可，不需要改媒体管线。脚本不安装 ASR 模型、不自动访问按分钟收费 API。读取当前工具 schema，不假定格式上限或时间戳单位。
 
 ## 浏览器
 
-优先连接已授权的专用 CDP。新实例使用独立 user-data-dir、动态端口和正常沙箱。建议使用 ~/.workbuddy/video-transcript-browser 并首次正常登录；已有其他专用配置目录时可以显式复用。脚本不复制日常 Chrome 的 Default、密码库或 Cookie 数据库。
+优先连接已授权的专用 CDP。browser.py 自动寻找 Windows/macOS/Linux 上的 Chrome、Edge、Chromium，可用 --chrome 或 VIDEO_TRANSCRIPT_BROWSER 指定实际可执行文件。新实例使用独立 user-data-dir、动态端口和正常沙箱。默认使用 ~/.video-transcript-doc-pro/browser 并首次正常登录；已有其他专用配置目录时可以 --profile 显式复用。脚本不复制日常浏览器的 Default、密码库或 Cookie 数据库。Linux 无桌面环境可用 --headless；交互登录需要有界面环境或已有专用会话。
 
 专用目录的 DevToolsActivePort 可连接时直接复用。目录被占用而无法连接时停止，不用 pkill 或删除目录。保留专用浏览器便于复用登录；仅在明确需要时关闭本任务专用实例，不关闭日常浏览器。启动失败检查专用目录的 transcript-browser.log。
 
@@ -24,6 +24,6 @@ Cookie 只采集候选媒体 URL 对应条目，下载按域、路径、secure�
 
 ## 状态与数据
 
-任务默认位于 ~/.workbuddy/artifacts/video-transcript-doc-pro/。每次 init 新建随机后缀目录；续跑显式传原 task。写操作用 .lock；断电留下孤立锁时先检查其中 PID 不再运行，才清理。
+数据目录默认为 ~/.video-transcript-doc-pro/，可通过 VIDEO_TRANSCRIPT_DATA_DIR 修改；任务在其 tasks/ 子目录。每次 init 新建随机后缀目录；续跑显式传原 task，旧 WorkBuddy 任务无需迁移也可继续。写操作用 .lock；断电留下孤立锁时先检查其中 PID 不再运行，才清理。
 
-capture.json 可能包含签名 URL 和 Cookie，权限 0600，不粘贴到对话或文档。原始 ASR 和课程全文保存在私有任务目录。重抓、重抽或重切片后不能混用旧 ASR。运行产物不放 scripts/references。
+capture.json 可能包含签名 URL 和 Cookie，不粘贴到对话或文档。POSIX 文件设置 0600；Windows 的 chmod 不能代替账户 ACL，应将数据保存在当前用户的私有目录。原始 ASR 和课程全文保存在任务目录。重抓、重抽或重切片后不能混用旧 ASR。运行产物不放 scripts/references。

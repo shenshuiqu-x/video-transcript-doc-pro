@@ -3,11 +3,20 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 let pw;
-for (const name of ['playwright-core', path.join(os.homedir(), '.workbuddy/binaries/node/workspace/node_modules/playwright-core')]) {
-  try { pw = require(name); break; } catch (_) {}
+let modulePath;
+if (Number(process.versions.node.split('.')[0]) < 20) {
+  console.error('需要 Node.js >=20。'); process.exit(1);
 }
-if (!pw) { console.error('找不到 playwright-core；请配置 NODE_PATH。'); process.exit(1); }
+const names = process.env.VIDEO_TRANSCRIPT_PLAYWRIGHT ? [process.env.VIDEO_TRANSCRIPT_PLAYWRIGHT] :
+  ['playwright-core', 'playwright', path.join(os.homedir(), '.workbuddy/binaries/node/workspace/node_modules/playwright-core')];
+for (const name of names) {
+  try { modulePath = require.resolve(name); pw = require(modulePath); if (pw.chromium) break; pw = null; } catch (_) {}
+}
+if (!pw) { console.error('找不到 Playwright；运行 scripts/bootstrap.py 或在技能目录运行 npm ci。'); process.exit(1); }
 const argv = process.argv.slice(2);
+if (argv.includes('--check')) {
+  console.log(JSON.stringify({node: process.version, module: modulePath})); process.exit(0);
+}
 function arg(name, fallback) { const i = argv.indexOf(name); return i < 0 ? fallback : argv[i + 1]; }
 const target = arg('--url'), out = arg('--out'), cdp = arg('--cdp');
 const wait = Math.max(5, Math.min(120, Number(arg('--wait', '35'))));

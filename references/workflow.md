@@ -1,11 +1,11 @@
 # 执行命令
 
-S 是技能目录，P 是其私有 Python，T 是 init 返回的实际 task。跨 shell 工具调用要重新赋值，不假定变量持久存在。
+S 是当前宿主安装的技能根目录，P 是 bootstrap 输出的私有 Python，T 是 init 返回的实际 task。跨 shell 工具调用要重新赋值，不假定变量持久存在。以下从技能根目录运行，不假定 WorkBuddy 安装路径。
 
 ## 准备
 
 ```bash
-S="$HOME/.workbuddy/skills/video-transcript-doc-pro"
+S="$PWD"
 python3 "$S/scripts/bootstrap.py"
 P="$S/.venv/bin/python"
 "$P" "$S/scripts/pipeline.py" init --url '<课程URL>'
@@ -14,7 +14,7 @@ P="$S/.venv/bin/python"
 保存返回路径并设置 T。已有专用 CDP 时跳过启动，否则：
 
 ```bash
-"$P" "$S/scripts/browser.py" --profile "$HOME/.workbuddy/video-transcript-browser"
+"$P" "$S/scripts/browser.py"
 ```
 
 首次在该专用浏览器中正常登录。已有其他专用配置目录时可显式传入；端口以输出为准。
@@ -28,7 +28,7 @@ P="$S/.venv/bin/python"
 
 ## ASR
 
-现场读取 AudioTranscribe schema，满足限制时直接传完整音频。工具仅接受 WAV、或文件需要切小时：
+现场读取宿主实际可用的 ASR schema，满足限制时直接传完整音频。WorkBuddy 可以使用 AudioTranscribe；其他 Agent 使用已提供或用户已配置的语音识别工具。脚本不绑定供应商，也不代为配置付费账号。工具仅接受 WAV、或文件需要切小时：
 
 ```bash
 "$P" "$S/scripts/pipeline.py" chunk --task "$T" --seconds 900 --overlap 2
@@ -47,7 +47,7 @@ start/end 是片内秒数，脚本加回 offset，不要重复加。毫秒转换
 ```bash
 "$P" "$S/scripts/transcript.py" import-asr --task "$T" \
   --input "$T/asr-normalized-0000.json" --raw "$T/asr-response-0000.json" \
-  --provider 'AudioTranscribe:<实际可见版本或未提供>' --part 0
+  --provider '<实际ASR提供方与版本；未提供版本则注明>' --part 0
 "$P" "$S/scripts/transcript.py" assemble --task "$T"
 ```
 
@@ -63,4 +63,21 @@ start/end 是片内秒数，脚本加回 offset，不要重复加。毫秒转换
 "$P" "$S/scripts/transcript.py" mdx --input "$T/transcript.md" --outdir "$T/publish"
 ```
 
-继续 [tencent-docs.md](tencent-docs.md) 的原创建/插入/回读流程。
+用户需要腾讯文档时，继续 [tencent-docs.md](tencent-docs.md) 的原创建/插入/回读流程；其他 Agent 使用等效的已授权连接器。仅本地交付时保留 Markdown、JSON、TXT、SRT；没有连接器不能宣称在线交付完成。
+
+## Windows PowerShell
+
+从技能根目录初始化与抓流：
+
+```powershell
+$S = (Get-Location).Path
+py -3 "$S/scripts/bootstrap.py"
+$P = "$S/.venv/Scripts/python.exe"
+& $P "$S/scripts/pipeline.py" init --url '<课程URL>'
+$T = '<init 返回的 task 路径>'
+& $P "$S/scripts/browser.py"
+& $P "$S/scripts/pipeline.py" capture --task $T --cdp 'http://127.0.0.1:<实际端口>'
+& $P "$S/scripts/pipeline.py" extract --task $T
+```
+
+后续命令用 `& $P` 调用，续行使用反引号或合并为一行，不使用 Bash 的反斜线续行。没有 py 启动器时用可用的 python 命令启动 bootstrap。

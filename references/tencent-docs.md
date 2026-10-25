@@ -1,6 +1,6 @@
 # 腾讯文档：复用原流程
 
-加载实际安装的 tencent-docs skill，动态定位 tencentdocs.py，tdoc_init 确认 READY。不写死插件缓存版本路径。
+加载实际安装的 tencent-docs skill，动态定位 tencentdocs.py，tdoc_init 确认 READY。不写死插件缓存版本路径。其他 Agent 可以使用支持相同智能文档操作的已授权连接器，将下列参数映射为实际工具 schema；创建、插入、分页回读的顺序保持一致。没有该连接器时交付本地文件并说明在线步骤缺失，不把 WorkBuddy 插件当作所有宿主的安装前提。
 
 固定调用顺序：
 

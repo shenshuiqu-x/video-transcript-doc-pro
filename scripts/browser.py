@@ -4,11 +4,11 @@ import argparse
 import json
 import os
 from pathlib import Path
-import shutil
 import socket
 import subprocess
 import time
 import urllib.request
+from runtime import data_root, detached_options, find_browser, isolated_profile
 
 
 def version(port):
@@ -19,14 +19,12 @@ def version(port):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--profile', required=True, help='专用配置目录；可复用已有登录态的专用目录')
-    p.add_argument('--chrome', default='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+    p.add_argument('--profile', default=str(data_root() / 'browser'), help='专用配置目录；默认存于技能数据目录')
+    p.add_argument('--chrome', help='Chrome / Edge / Chromium 可执行文件；默认自动发现')
     p.add_argument('--direct', action='store_true', help='明确需要直连时才关闭 Chrome 的代理')
+    p.add_argument('--headless', action='store_true', help='无图形界面运行；首次交互登录时不要使用')
     args = p.parse_args()
-    profile = Path(args.profile).expanduser().resolve()
-    default = Path.home() / 'Library/Application Support/Google/Chrome'
-    if profile == default or default in profile.parents:
-        raise SystemExit('不能调试日常 Chrome 的默认配置目录；使用专用目录。')
+    profile = isolated_profile(args.profile)
     active = profile / 'DevToolsActivePort'
     metadata = profile / 'transcript-cdp.json'
     ports = []
@@ -43,9 +41,9 @@ def main():
             return
         except (OSError, ValueError, IndexError):
             pass
-    chrome = args.chrome if Path(args.chrome).exists() else shutil.which('google-chrome')
+    chrome = find_browser(args.chrome)
     if not chrome:
-        raise SystemExit('找不到 Chrome；使用 --chrome 指定。')
+        raise SystemExit('找不到 Chrome / Edge / Chromium；使用 --chrome 或 VIDEO_TRANSCRIPT_BROWSER 指定。')
     profile.mkdir(parents=True, exist_ok=True, mode=0o700)
     with socket.socket() as s:
         s.bind(('127.0.0.1', 0))
@@ -54,10 +52,12 @@ def main():
            '--user-data-dir=' + str(profile), '--no-first-run', '--no-default-browser-check']
     if args.direct:
         cmd.append('--no-proxy-server')
+    if args.headless:
+        cmd.append('--headless=new')
     log = profile / 'transcript-browser.log'
     with open(log, 'ab') as out:
         proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=out, stderr=out,
-                                start_new_session=True)
+                                **detached_options())
     os.chmod(log, 0o600)
     for _ in range(40):
         try:

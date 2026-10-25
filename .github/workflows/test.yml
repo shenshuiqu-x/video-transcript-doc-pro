@@ -1,0 +1,34 @@
+name: Cross-platform regression
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      VIDEO_TRANSCRIPT_BROWSER_TEST: '1'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python scripts/bootstrap.py
+      - name: Test media and installed browser
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            .venv/Scripts/python.exe scripts/pipeline.py doctor --require-browser
+            .venv/Scripts/python.exe scripts/selftest.py
+          else
+            .venv/bin/python scripts/pipeline.py doctor --require-browser
+            .venv/bin/python scripts/selftest.py
+          fi

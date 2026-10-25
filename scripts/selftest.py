@@ -3,18 +3,51 @@
 import functools
 import http.server
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 import wave
 
 import pipeline as p
 import transcript as t
+import runtime as r
+
+
+class Portability(unittest.TestCase):
+    def test_windows_runtime_and_browser_paths(self):
+        with patch.object(r.sys, 'platform', 'win32'), patch.object(r.shutil, 'which', return_value=None), patch.dict(os.environ, {'LOCALAPPDATA': '/local'}):
+            self.assertEqual(r.venv_python('/skill/.venv').as_posix(), '/skill/.venv/Scripts/python.exe')
+            self.assertIn('/local/Microsoft/Edge/Application/msedge.exe', [Path(x).as_posix() for x in r.browser_candidates() if x])
+            self.assertIn('creationflags', r.detached_options())
+            with self.assertRaises(ValueError):
+                r.isolated_profile('/local/Google/Chrome/User Data/Default')
+
+    def test_linux_default_profile_is_protected(self):
+        with patch.object(r.sys, 'platform', 'linux'), patch.dict(os.environ, {'XDG_CONFIG_HOME': '/config'}):
+            with self.assertRaises(ValueError):
+                r.isolated_profile('/config/chromium/Default')
+            self.assertEqual(r.isolated_profile('/dedicated-browser'), Path('/dedicated-browser').resolve())
+            self.assertEqual(r.venv_python('/venv').as_posix(), '/venv/bin/python')
+            self.assertTrue(r.detached_options()['start_new_session'])
+
+    def test_explicit_executable_overrides_and_custom_data_dir(self):
+        with tempfile.TemporaryDirectory() as folder:
+            exe = Path(folder) / 'custom-browser'
+            exe.touch()
+            with patch.dict(os.environ, {'VIDEO_TRANSCRIPT_BROWSER': str(exe), 'VIDEO_TRANSCRIPT_NODE': str(exe),
+                                         'VIDEO_TRANSCRIPT_DATA_DIR': folder}):
+                self.assertEqual(r.find_browser(), str(exe))
+                self.assertEqual(r.find_node(), str(exe))
+                self.assertEqual(r.data_root(), Path(folder))
+                self.assertIsNone(r.find_browser(str(exe) + '-absent'))
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -127,7 +160,7 @@ class Regression(unittest.TestCase):
         subprocess.run([self.ff, '-v', 'error', '-y', '-i', str(self.media), '-c:a', 'copy',
                         '-f', 'hls', '-hls_time', '5', '-hls_list_size', '0', '-hls_segment_type', 'fmp4', '-hls_flags', 'single_file',
                         str(folder / 'child.m3u8')], check=True, capture_output=True)
-        (folder / 'master.m3u8').write_text('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=96000\nchild.m3u8\n')
+        (folder / 'master.m3u8').write_text('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=96000\nchild.m3u8\n', encoding='utf-8')
         task = self.task('hls-task')
         p.save(task / 'capture.json', {'media': [{'url': self.base + '/hls/master.m3u8', 'kind': 'hls'}], 'cookies': []})
         report = p.run_extract(task, p.load(task / 'manifest.json'), None, True, 1024**2)
@@ -138,7 +171,7 @@ class Regression(unittest.TestCase):
         folder = self.root / 'encrypted'
         folder.mkdir()
         (folder / 'key.bin').write_bytes(bytes(range(16)))
-        (folder / 'keyinfo.txt').write_text('key.bin\n' + str(folder / 'key.bin') + '\n' + '0' * 31 + '1\n')
+        (folder / 'keyinfo.txt').write_text('key.bin\n' + (folder / 'key.bin').as_posix() + '\n' + '0' * 31 + '1\n', encoding='utf-8')
         subprocess.run([self.ff, '-v', 'error', '-y', '-i', str(self.media), '-c:a', 'copy',
                         '-f', 'hls', '-hls_time', '5', '-hls_list_size', '0',
                         '-hls_key_info_file', str(folder / 'keyinfo.txt'), str(folder / 'index.m3u8')],
@@ -175,14 +208,37 @@ class Regression(unittest.TestCase):
 
     def test_mdx_formats_bold_but_preserves_code_and_escapes_jsx(self):
         source = self.root / 'draft.md'
-        source.write_text('# 标题\n\n> **原话** <tag> {x}\n\n`**代码**`\n\n```python\nx = "**literal**"\n```\n')
+        source.write_text('# 标题\n\n> **原话** <tag> {x}\n\n`**代码**`\n\n```python\nx = "**literal**"\n```\n', encoding='utf-8')
         output = self.root / 'publish'
         t.render_mdx(source, output)
-        result = (output / 'content.mdx').read_text()
+        result = (output / 'content.mdx').read_text(encoding='utf-8')
         self.assertIn('> <Mark bold>原话</Mark>', result)
         self.assertIn('&lt;tag&gt; &#123;x&#125;', result)
         self.assertIn('`**代码**`', result)
         self.assertIn('x = "**literal**"', result)
+
+    @unittest.skipUnless(os.environ.get('VIDEO_TRANSCRIPT_BROWSER_TEST') == '1', 'opt-in installed-browser test')
+    def test_real_browser_iframe_capture_and_extract(self):
+        (self.root / 'course.html').write_text('<title>Synthetic course</title><iframe src="/player.html"></iframe>', encoding='utf-8')
+        (self.root / 'player.html').write_text('<audio src="/tone.wav" controls></audio>', encoding='utf-8')
+        profile = self.root / 'browser-profile'
+        info = json.loads(subprocess.check_output([sys.executable, str(p.ROOT / 'scripts/browser.py'),
+                          '--profile', str(profile), '--headless', '--direct'], text=True))
+        node = r.find_node()
+        status = r.playwright_status(node, p.ROOT)
+        try:
+            task = self.task('browser-task')
+            subprocess.run([node, str(p.ROOT / 'scripts/capture.js'), '--cdp', info['cdp'],
+                            '--url', self.base + '/course.html', '--out', str(task / 'capture.json'), '--wait', '5'],
+                           check=True, capture_output=True, text=True, timeout=45)
+            capture = p.load(task / 'capture.json')
+            self.assertTrue(any(row['url'] == self.base + '/tone.wav' for row in capture['media']))
+            report = p.run_extract(task, p.load(task / 'manifest.json'), None, True, 1024**2)
+            self.assertAlmostEqual(report['decoded_duration'], 22, delta=.1)
+        finally:
+            # Only close the dedicated test browser; never touch a user's browser.
+            close = "const p=require(process.argv[1]);(async()=>{const b=await p.chromium.connectOverCDP(process.argv[2]);const s=await b.newBrowserCDPSession();await s.send('Browser.close').catch(()=>{});})().then(()=>process.exit(0)).catch(()=>process.exit(1));"
+            subprocess.run([node, '-e', close, status['module'], info['cdp']], timeout=15, capture_output=True)
 
 
 if __name__ == '__main__':

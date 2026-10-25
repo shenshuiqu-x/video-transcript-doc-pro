@@ -17,6 +17,7 @@ import time
 import urllib.parse
 import urllib.request
 import uuid
+from runtime import data_root, find_browser, find_node, playwright_status
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -442,10 +443,11 @@ def chunks(task, state, seconds, overlap):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest='command', required=True)
-    sub.add_parser('doctor')
+    doctor = sub.add_parser('doctor')
+    doctor.add_argument('--require-browser', action='store_true', help='浏览器采集依赖缺失时非零退出')
     init = sub.add_parser('init')
     init.add_argument('--url', required=True)
-    init.add_argument('--output-root', default=str(Path.home() / '.workbuddy/artifacts/video-transcript-doc-pro'))
+    init.add_argument('--output-root', default=str(data_root() / 'tasks'))
     for name in ('capture', 'extract', 'chunk'):
         q = sub.add_parser(name)
         q.add_argument('--task', required=True)
@@ -462,10 +464,15 @@ def main():
     args = p.parse_args()
     if args.command == 'doctor':
         import av
-        node = shutil.which('node')
-        module = Path.home() / '.workbuddy/binaries/node/workspace/node_modules/playwright-core'
+        node = find_node()
+        browser = find_browser()
+        playwright = playwright_status(node, ROOT)
         print(json.dumps({'python': sys.executable, 'av': av.__version__, 'ffmpeg': ffmpeg(),
-                          'node': node, 'workbuddy_playwright': str(module) if module.exists() else None}, ensure_ascii=False))
+                          'node': node, 'playwright': playwright, 'browser': browser,
+                          'data_root': str(data_root()),
+                          'asr': '由宿主或用户配置，需单独核验', 'tencent_docs': '由宿主连接器提供，需单独核验'}, ensure_ascii=False))
+        if args.require_browser and (not browser or not playwright['available']):
+            raise SystemExit('浏览器采集依赖未就绪；检查上述 doctor 输出。')
         return
     if args.command == 'init':
         http_url(args.url)
@@ -478,10 +485,7 @@ def main():
     with locked(task):
         state = load(task / 'manifest.json')
         if args.command == 'capture':
-            node = shutil.which('node')
-            if not node:
-                possible = sorted((Path.home() / '.workbuddy/binaries/node/versions').glob('*/bin/node'))
-                node = str(possible[-1]) if possible else None
+            node = find_node()
             if not node:
                 raise ValueError('找不到 Node。')
             env = dict(os.environ)
