@@ -2,7 +2,7 @@
 
 [![Cross-platform regression](https://github.com/shenshuiqu-x/video-transcript-doc-pro/actions/workflows/test.yml/badge.svg)](https://github.com/shenshuiqu-x/video-transcript-doc-pro/actions/workflows/test.yml)
 
-把有权访问的网页视频课程，从真实音轨转成带时间戳的逐字稿，生成本地文件，并按需整理章节、写入腾讯文档。
+把有权访问的网页视频，从真实音轨转成带时间戳的逐字稿，生成本地文件，并按需整理章节、写入腾讯文档。适用于访谈、会议、演讲、操作演示等各类视频。
 
 采用 [Agent Skills](https://agentskills.io/specification) 的 `SKILL.md` 目录结构，不绑定某个 Agent。WorkBuddy 是最初使用的宿主；其他能读取技能、运行本地命令的 Agent 也可安装。逐字内容来自语音识别（ASR），不使用 OCR；原始响应、原始转录和整理正文分别保留。
 
@@ -34,7 +34,7 @@ scripts/pipeline.py doctor --require-browser。
 
 代码适配 **Windows、macOS、Linux**，自动发现 Chrome、Edge 或 Chromium，处理不同系统的虚拟环境路径和浏览器进程启动方式。Windows 默认的 Edge 也可以使用，不必额外安装 Chrome。Linux 无桌面环境可使用 `browser.py --headless`；首次需要交互登录的网站，应先在有界面的专用浏览器中完成登录。
 
-已在 macOS 本机验证媒体处理及真实浏览器抓流。仓库 CI 在三个系统原生环境中运行相同的媒体回归和浏览器测试，最新结果见上方徽章。CI 使用合成媒体，不证明每个课程网站、每种 ASR 或每个宿主的在线文档交付都经过验证。
+已在 macOS 本机验证媒体处理及真实浏览器抓流。仓库 CI 在三个系统原生环境中运行相同的媒体回归和浏览器测试，最新结果见上方徽章。CI 使用合成媒体，不证明每个视频网站、每种 ASR 或每个宿主的在线文档交付都经过验证。
 
 ## 环境与手动安装
 
@@ -73,23 +73,23 @@ bootstrap 创建技能自己的 `.venv`，安装 Python 媒体依赖；能复用
 安装后向 Agent 发送：
 
 ```text
-使用 video-transcript-doc-pro，把这个课程完整转成带时间戳的逐字稿，
-保留原稿并整理章节，写入腾讯文档：<课程链接>
+使用 video-transcript-doc-pro，把这个视频完整转成带时间戳的逐字稿，
+保留原稿并整理章节，写入腾讯文档：<视频链接>
 ```
 
-也可以只要求本地逐字稿或只验证抽音。首次在技能启动的专用浏览器中正常登录课程网站；脚本输出本机 CDP 地址，供后续抓流使用。具体命令及 PowerShell 示例见 [执行流程](references/workflow.md)。
+也可以只要求本地逐字稿或只验证抽音。需要登录的网站，首次在技能启动的专用浏览器中正常登录；脚本输出本机 CDP 地址，供后续抓流使用。具体命令及 PowerShell 示例见 [执行流程](references/workflow.md)。
 
 ## 能力与边界
 
 - 导航前监听媒体请求，支持跨 iframe 播放器，不把 `blob:` 或单个分片当作完整视频。
 - 使用标准 FFmpeg 处理 HTTP(S) 文件和带 `ENDLIST` 的完整 HLS 点播，支持 TS、fMP4、字节范围及普通 AES-128 HLS。DASH、未结束直播和 DRM/SAMPLE-AES 尚未适配。
-- 每课独立目录，绑定源文件和 ASR 切片，执行下载、全量解码和时长检查，防止缓存串课、缺片和部分下载被当成完成。
+- 每个视频独立目录，绑定源文件和 ASR 切片，执行下载、全量解码和时长检查，防止混用不同视频的缓存、缺片和部分下载被当成完成。
 - ASR 的格式、大小、时长及时间戳以实际工具定义为准。没有真实时间戳不能均分全文伪造时间轴；结构检查通过也不保证逐字准确，术语、数字、否定句和切片接缝仍需回听。
 - 腾讯文档适配器由宿主提供，不包含在仓库里；缺少连接器时保留本地产物并报告缺口，不宣称已经在线交付。
 
 ## 本地数据与隐私
 
-默认数据目录为 `~/.video-transcript-doc-pro/`（Windows 对应用户主目录下的同名文件夹），其中 `browser/` 保存专用登录会话，`tasks/` 保存课程任务。以前的任务目录仍可通过 `--task` 继续使用，已有专用浏览器目录可通过 `--profile` 复用。
+默认数据目录为 `~/.video-transcript-doc-pro/`（Windows 对应用户主目录下的同名文件夹），其中 `browser/` 保存专用登录会话，`tasks/` 保存视频任务。以前的任务目录仍可通过 `--task` 继续使用，已有专用浏览器目录可通过 `--profile` 复用。
 
 这些目录可能包含签名 URL、Cookie、音频和完整转录，不应提交到公开仓库。POSIX 系统设置私有目录/文件权限；Windows 使用所在目录的账户 ACL，`chmod(0600)` 不等同于 Windows ACL 隔离，请将数据留在自己的用户目录。
 

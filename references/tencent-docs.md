@@ -4,7 +4,7 @@
 
 固定调用顺序：
 
-1. manage.create_file `{"title":"<课程名>（逐字稿）","file_type":"smartcanvas"}` 创建空白文档。
+1. manage.create_file `{"title":"<视频标题>（逐字稿）","file_type":"smartcanvas"}` 创建空白文档。
 2. smartcanvas.edit `{"file_id":"<id>","action":"INSERT_AFTER","id":"","content":"<MDX全文>"}` 插入正文。
 3. smartcanvas.read `{"file_id":"<id>","size":20}`，持续携带 next_token 读取末页。
 

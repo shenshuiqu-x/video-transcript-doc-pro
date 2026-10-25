@@ -159,7 +159,7 @@ class Regression(unittest.TestCase):
 
     def test_file_extract_replaces_stale_nonempty_source(self):
         task = self.task('file')
-        (task / 'source.media').write_bytes(b'old wrong course')
+        (task / 'source.media').write_bytes(b'old wrong video')
         p.save(task / 'capture.json', {'media': [{'url': self.base + '/tone.m4a', 'kind': 'file'}], 'cookies': [], 'videos': []})
         state = p.load(task / 'manifest.json')
         report = p.run_extract(task, state, None, True, 1024**2)
@@ -240,7 +240,7 @@ class Regression(unittest.TestCase):
 
     @unittest.skipUnless(os.environ.get('VIDEO_TRANSCRIPT_BROWSER_TEST') == '1', 'opt-in installed-browser test')
     def test_real_browser_iframe_capture_and_extract(self):
-        (self.root / 'course.html').write_text('<title>Synthetic course</title><iframe src="/player.html"></iframe>', encoding='utf-8')
+        (self.root / 'video.html').write_text('<title>Synthetic video</title><iframe src="/player.html"></iframe>', encoding='utf-8')
         (self.root / 'player.html').write_text('<audio src="/tone.wav" controls></audio>', encoding='utf-8')
         profile = self.root / 'browser-profile'
         info = json.loads(subprocess.check_output([sys.executable, str(p.ROOT / 'scripts/browser.py'),
@@ -250,7 +250,7 @@ class Regression(unittest.TestCase):
         try:
             task = self.task('browser-task')
             subprocess.run([node, str(p.ROOT / 'scripts/capture.js'), '--cdp', info['cdp'],
-                            '--url', self.base + '/course.html', '--out', str(task / 'capture.json'), '--wait', '5'],
+                            '--url', self.base + '/video.html', '--out', str(task / 'capture.json'), '--wait', '5'],
                            check=True, capture_output=True, text=True, timeout=45)
             capture = p.load(task / 'capture.json')
             self.assertTrue(any(row['url'] == self.base + '/tone.wav' for row in capture['media']))

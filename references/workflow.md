@@ -8,7 +8,7 @@ S 是当前宿主安装的技能根目录，P 是 bootstrap 输出的私有 Pyth
 S="$PWD"
 python3 "$S/scripts/bootstrap.py"
 P="$S/.venv/bin/python"
-"$P" "$S/scripts/pipeline.py" init --url '<课程URL>'
+"$P" "$S/scripts/pipeline.py" init --url '<视频URL>'
 ```
 
 保存返回路径并设置 T。已有专用 CDP 时跳过启动，否则：
@@ -24,7 +24,7 @@ P="$S/.venv/bin/python"
 "$P" "$S/scripts/pipeline.py" extract --task "$T"
 ```
 
-多个候选时查看私有 capture.json，核对广告、多语言、多课视频后用 --media-index 指定。不要输出凭据。确认需要直连时才加 extract --direct。audio.file 是实际文件名，audio.decoded_duration 是解码时长；AAC/ALAC 文件通常生成 M4A，其他编码及 HLS 生成 FLAC。401/403、无音轨、坏帧或时长不符就停止，刷新真实授权，不手写假 capture。
+多个候选时查看私有 capture.json，区分广告、多语言音轨和不同视频后用 --media-index 指定。不要输出凭据。确认需要直连时才加 extract --direct。audio.file 是实际文件名，audio.decoded_duration 是解码时长；AAC/ALAC 文件通常生成 M4A，其他编码及 HLS 生成 FLAC。401/403、无音轨、坏帧或时长不符就停止，刷新真实授权，不手写假 capture。
 
 ## ASR
 
@@ -57,7 +57,7 @@ start/end 是片内秒数，脚本加回 offset，不要重复加。毫秒转换
 
 读取 transcript.raw.json/TXT/SRT 与 transcript.qa.json。检查只证明片段与时间结构，不能证明识别准确。回听长空白、重复、低置信度和片头、中段、片尾、接缝，核对术语、数字和否定句。校订另存 corrected，不覆盖 raw。
 
-写 transcript.md，按用户范围包含课程信息、转录说明、章节脉络、正文，默认附原始转录。画面未口述的对象标注“此处讲师指向画面，音轨未说明具体对象”，不猜图形或名称。不强制章节数、不默认增加金句或泛化免责声明。
+写 transcript.md，按用户范围包含视频信息、转录说明、章节脉络、正文，默认附原始转录。需要说明音画信息缺口时，可标注“音轨未说明画面中的具体对象”，不猜图形或名称。不强制章节数、不默认增加金句或泛化免责声明。
 
 ```bash
 "$P" "$S/scripts/transcript.py" mdx --input "$T/transcript.md" --outdir "$T/publish"
@@ -73,7 +73,7 @@ start/end 是片内秒数，脚本加回 offset，不要重复加。毫秒转换
 $S = (Get-Location).Path
 py -3 "$S/scripts/bootstrap.py"
 $P = "$S/.venv/Scripts/python.exe"
-& $P "$S/scripts/pipeline.py" init --url '<课程URL>'
+& $P "$S/scripts/pipeline.py" init --url '<视频URL>'
 $T = '<init 返回的 task 路径>'
 & $P "$S/scripts/browser.py"
 & $P "$S/scripts/pipeline.py" capture --task $T --cdp 'http://127.0.0.1:<实际端口>'

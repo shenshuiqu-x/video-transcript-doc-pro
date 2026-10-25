@@ -28,4 +28,4 @@ Cookie 只采集候选媒体 URL 对应条目，下载按域、路径、secure�
 
 数据目录默认为 ~/.video-transcript-doc-pro/，可通过 VIDEO_TRANSCRIPT_DATA_DIR 修改；任务在其 tasks/ 子目录。每次 init 新建随机后缀目录；续跑显式传原 task，旧 WorkBuddy 任务无需迁移也可继续。写操作用 .lock；断电留下孤立锁时先检查其中 PID 不再运行，才清理。
 
-capture.json 可能包含签名 URL 和 Cookie，不粘贴到对话或文档。POSIX 文件设置 0600；Windows 的 chmod 不能代替账户 ACL，应将数据保存在当前用户的私有目录。原始 ASR 和课程全文保存在任务目录。重抓、重抽或重切片后不能混用旧 ASR。运行产物不放 scripts/references。
+capture.json 可能包含签名 URL 和 Cookie，不粘贴到对话或文档。POSIX 文件设置 0600；Windows 的 chmod 不能代替账户 ACL，应将数据保存在当前用户的私有目录。原始 ASR 和视频的完整转录保存在任务目录。重抓、重抽或重切片后不能混用旧 ASR。运行产物不放 scripts/references。

@@ -205,7 +205,7 @@ def hls_input(opener, url, headers, depth=0, origin=None):
     if variants:
         return hls_input(opener, urllib.parse.urljoin(final_url, min(variants)[1]), headers, depth + 1, origin)
     if '#EXT-X-ENDLIST' not in lines:
-        raise ValueError('发现直播/未结束清单；当前只处理完整点播，不能冒充全课。')
+        raise ValueError('发现直播/未结束清单；当前只处理完整点播，不能作为完整视频处理。')
     for line in lines:
         if line.startswith('#EXT-X-KEY:') and not re.search(r'METHOD=(NONE|AES-128)(?:,|$)', line):
             raise ValueError('该加密方式不在当前适配范围；不尝试绕过 DRM。')
@@ -378,7 +378,7 @@ def run_extract(task, state, index, direct, max_bytes):
     else:
         raise ValueError('未支持的媒体类型。')
     if not expected or expected <= 0:
-        raise ValueError('无法确定完整点播时长；先确认媒体，不自动生成全课稿。')
+        raise ValueError('无法确定完整点播时长；先确认媒体，不自动生成完整视频的转录。')
     filename = 'audio.m4a' if copy else 'audio.flac'
     dest, part = task / filename, task / (filename + '.part')
     cmd = [binary, '-hide_banner', '-v', 'error', '-xerror', '-nostdin', '-y'] + input_args

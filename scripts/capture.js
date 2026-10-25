@@ -33,7 +33,7 @@ function kind(url, ct = '') {
 }
 (async () => {
   if (!target || !out || !cdp) throw new Error('需要 --url --out --cdp');
-  if (!/^https?:$/.test(new URL(target).protocol)) throw new Error('课程 URL 必须为 HTTP(S)');
+  if (!/^https?:$/.test(new URL(target).protocol)) throw new Error('视频 URL 必须为 HTTP(S)');
   const endpoint = new URL(cdp);
   if (!['127.0.0.1', 'localhost', '[::1]'].includes(endpoint.hostname)) throw new Error('CDP 仅连接本机');
   const browser = await pw.chromium.connectOverCDP(cdp, { timeout: 30000 });
